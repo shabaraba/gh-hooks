@@ -146,13 +146,47 @@ gh pr create --fill
 
 ## Available Hooks
 
-| Hook Function | When Called | Parameters |
-|---------------|-------------|------------|
-| `gh_hook_pr_merged` | After `gh pr merge` | `<pr_title>` `<pr_number>` |
-| `gh_hook_release_pr_merged` | After merging a release PR | `<version>` |
-| `gh_hook_pr_created` | After `gh pr create` | `<pr_number>` `<pr_url>` |
-| `gh_hook_pr_closed` | After `gh pr close` | `<pr_number>` |
-| `gh_hook_release_created` | After `gh release create` | `<tag_name>` `<release_url>` |
+| Hook Function | When Called | Parameters | Execution Mode |
+|---------------|-------------|------------|----------------|
+| `gh_hook_pr_merged` | After `gh pr merge` | `<pr_title>` `<pr_number>` | Synchronous |
+| `gh_hook_pr_merged_async` | After `gh pr merge` | `<pr_title>` `<pr_number>` | Asynchronous |
+| `gh_hook_release_pr_merged` | After merging a release PR | `<version>` | Synchronous |
+| `gh_hook_release_pr_merged_async` | After merging a release PR | `<version>` | Asynchronous |
+| `gh_hook_pr_created` | After `gh pr create` | `<pr_number>` `<pr_url>` | Synchronous |
+| `gh_hook_pr_created_async` | After `gh pr create` | `<pr_number>` `<pr_url>` | Asynchronous |
+| `gh_hook_pr_closed` | After `gh pr close` | `<pr_number>` | Synchronous |
+| `gh_hook_pr_closed_async` | After `gh pr close` | `<pr_number>` | Asynchronous |
+| `gh_hook_release_created` | After `gh release create` | `<tag_name>` `<release_url>` | Synchronous |
+| `gh_hook_release_created_async` | After `gh release create` | `<tag_name>` `<release_url>` | Asynchronous |
+
+### Synchronous vs Asynchronous Hooks
+
+- **Synchronous hooks**: Block the `gh` command until completion. Use for critical operations that must complete before continuing.
+- **Asynchronous hooks** (with `_async` suffix): Run in the background without blocking. The `gh` command returns immediately.
+
+**When to use async hooks:**
+- Long-running operations (publishing packages, sending notifications)
+- Non-critical tasks that can fail without affecting the workflow
+- Operations that don't need to complete before the next command
+
+**Using both versions together:**
+If both `gh_hook_name` and `gh_hook_name_async` are defined:
+1. The `_async` version starts first in the background (non-blocking)
+2. The sync version runs immediately after (blocking)
+3. Both hooks execute, allowing parallel long-running tasks with sequential critical operations
+
+Example use case:
+```bash
+# Async: Start long-running package publish in background
+gh_hook_release_pr_merged_async() {
+  cargo publish  # Runs in background
+}
+
+# Sync: Perform critical local operations
+gh_hook_release_pr_merged() {
+  gh release create "v$1"  # Waits for completion
+}
+```
 
 ## Examples
 

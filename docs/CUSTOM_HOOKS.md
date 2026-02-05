@@ -5,11 +5,12 @@ Guide to creating custom hooks for gh-hooks.
 ## Table of Contents
 
 1. [Basic Hook Structure](#basic-hook-structure)
-2. [Hook Function Signatures](#hook-function-signatures)
-3. [Common Patterns](#common-patterns)
-4. [Advanced Techniques](#advanced-techniques)
-5. [Testing Hooks](#testing-hooks)
-6. [Examples](#examples)
+2. [Synchronous vs Asynchronous Hooks](#synchronous-vs-asynchronous-hooks)
+3. [Hook Function Signatures](#hook-function-signatures)
+4. [Common Patterns](#common-patterns)
+5. [Advanced Techniques](#advanced-techniques)
+6. [Testing Hooks](#testing-hooks)
+7. [Examples](#examples)
 
 ## Basic Hook Structure
 
@@ -52,6 +53,138 @@ gh_hook_pr_merged() {
   local pr_number="$2"
 
   send_slack_notification "PR #${pr_number} merged: ${pr_title}"
+}
+```
+
+## Synchronous vs Asynchronous Hooks
+
+gh-hooks supports two execution modes for hooks:
+
+### Synchronous Hooks (Default)
+
+Synchronous hooks block the `gh` command until completion.
+
+```bash
+gh_hook_pr_merged() {
+  local pr_title="$1"
+  local pr_number="$2"
+
+  echo "Processing PR #${pr_number}..."
+  # This blocks until complete
+  sleep 5
+  echo "Done!"
+}
+```
+
+**Use when:**
+- Critical operations that must complete before continuing
+- Operations that affect the next command (e.g., git operations)
+- Fast operations (< 1 second)
+
+### Asynchronous Hooks (Add `_async` suffix)
+
+Asynchronous hooks run in the background without blocking.
+
+```bash
+gh_hook_pr_merged_async() {
+  local pr_title="$1"
+  local pr_number="$2"
+
+  echo "Processing PR #${pr_number} in background..."
+  # This runs in background, gh command returns immediately
+  sleep 5
+  echo "Done!"
+}
+```
+
+**Use when:**
+- Long-running operations (publishing packages, sending notifications)
+- Non-critical tasks that can fail without affecting workflow
+- Operations that don't need to complete before next command
+
+### Using Both Versions Together
+
+When both versions exist, **both are executed**:
+
+1. The `_async` version starts first in the background (non-blocking)
+2. The sync version runs immediately after (blocking)
+
+```bash
+# Async version runs in background
+gh_hook_pr_merged_async() {
+  echo "Async: Starting long operation..."
+  sleep 10
+  echo "Async: Done!"
+}
+
+# Sync version runs and blocks
+gh_hook_pr_merged() {
+  echo "Sync: Performing critical operation..."
+  sleep 2
+  echo "Sync: Done!"
+}
+
+# Execution order:
+# 1. "Async: Starting long operation..." (starts in background)
+# 2. "Sync: Performing critical operation..." (blocks)
+# 3. "Sync: Done!" (after 2 seconds)
+# 4. "Async: Done!" (after 10 seconds total, in background)
+```
+
+**Benefits of using both:**
+- Start long-running tasks in the background (package publish, notifications)
+- Perform critical operations synchronously (git operations, local builds)
+- Maximize efficiency by running both in parallel
+
+**Practical example:**
+```bash
+# Async: Publish to crates.io (takes 2-3 minutes)
+gh_hook_release_pr_merged_async() {
+  local version="$1"
+  cargo publish
+}
+
+# Sync: Create GitHub release (must complete before returning)
+gh_hook_release_pr_merged() {
+  local version="$1"
+  gh release create "v${version}"
+}
+```
+
+### Examples
+
+**Long-running publish operation (async recommended):**
+```bash
+gh_hook_release_pr_merged_async() {
+  local version="$1"
+
+  cargo publish  # May take minutes
+  gh release create "v${version}"
+}
+```
+
+**Critical pre-merge validation (must be sync):**
+```bash
+gh_hook_before_merge() {
+  local pr_number="$1"
+
+  # Must complete before merge
+  if ! ./scripts/validate.sh; then
+    echo "Validation failed!"
+    return 1  # Abort merge
+  fi
+}
+```
+
+**Non-critical notification (async recommended):**
+```bash
+gh_hook_pr_created_async() {
+  local pr_number="$1"
+  local pr_url="$2"
+
+  # Send notification without blocking
+  curl -X POST "$SLACK_WEBHOOK" \
+    -d "{\"text\":\"New PR: ${pr_url}\"}"
 }
 ```
 

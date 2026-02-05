@@ -79,8 +79,11 @@ gh_hooks_status() {
       echo "  Config file: ${project_root}/.gh-hooks.sh (found)"
       echo "  Defined hooks:"
       for hook in "${hooks[@]}"; do
-        if type "$hook" >/dev/null 2>&1; then
-          echo "    - $hook"
+        local async_hook="${hook}_async"
+        if type "$async_hook" >/dev/null 2>&1; then
+          echo "    - $async_hook (async)"
+        elif type "$hook" >/dev/null 2>&1; then
+          echo "    - $hook (sync)"
         fi
       done
     else
@@ -111,22 +114,43 @@ HOOK FUNCTIONS:
   Define these functions in your project's .gh-hooks.sh file:
 
   gh_hook_pr_merged <title> <number>
-    Called after a PR is merged
+    Called after a PR is merged (synchronous)
+
+  gh_hook_pr_merged_async <title> <number>
+    Called after a PR is merged (asynchronous)
 
   gh_hook_release_pr_merged <version>
-    Called after a release PR is merged
+    Called after a release PR is merged (synchronous)
+
+  gh_hook_release_pr_merged_async <version>
+    Called after a release PR is merged (asynchronous)
 
   gh_hook_pr_created <number> <url>
-    Called after a PR is created
+    Called after a PR is created (synchronous)
+
+  gh_hook_pr_created_async <number> <url>
+    Called after a PR is created (asynchronous)
 
   gh_hook_pr_closed <number>
-    Called after a PR is closed
+    Called after a PR is closed (synchronous)
+
+  gh_hook_pr_closed_async <number>
+    Called after a PR is closed (asynchronous)
 
   gh_hook_release_created <tag> <url>
-    Called after a release is created
+    Called after a release is created (synchronous)
+
+  gh_hook_release_created_async <tag> <url>
+    Called after a release is created (asynchronous)
 
   gh_hook_before_merge <number>
-    Called before merging a PR (return 1 to abort)
+    Called before merging a PR (return 1 to abort, synchronous only)
+
+  NOTE: Add '_async' suffix to hook names for background execution.
+        Async hooks do not block the gh command from returning.
+        If both versions exist, both are executed:
+          1. _async version starts in background (non-blocking)
+          2. sync version runs immediately after (blocking)
 
 ENVIRONMENT VARIABLES:
   GH_HOOKS_ENABLED=1           Enable/disable hooks (0=disabled, 1=enabled)
