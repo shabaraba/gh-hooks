@@ -18,9 +18,10 @@ gh pr merge <PR番号> --squash
 
 ```bash
 npx release-please release-pr \
-  --token="${GITHUB_TOKEN}" \
   --repo-url="shabaraba/gh-hooks" \
-  --release-type=simple
+  --token="${GITHUB_TOKEN}" \
+  --config-file=release-please-config.json \
+  --manifest-file=.release-please-manifest.json
 ```
 
 ### 2. `gh_hook_release_pr_merged` - リリースPRマージ時
@@ -34,12 +35,26 @@ gh pr merge <リリースPR番号> --squash
 ↓ 自動実行
 
 ```bash
-gh release create "v${version}" \
-  --title "v${version}" \
-  --notes-file CHANGELOG.md
+npx release-please github-release \
+  --repo-url="shabaraba/gh-hooks" \
+  --token="${GITHUB_TOKEN}" \
+  --config-file=release-please-config.json \
+  --manifest-file=.release-please-manifest.json
 ```
 
-## 必要な環境変数
+## 必要な環境
+
+### Node.js / npx
+
+release-pleaseをローカルで実行するために必要です。
+
+```bash
+# Node.jsがインストールされているか確認
+node --version
+npx --version
+```
+
+インストールされていない場合は、[Node.js公式サイト](https://nodejs.org/)からインストールしてください。
 
 ### GITHUB_TOKEN
 
@@ -190,13 +205,13 @@ gh pr merge <PR番号> --squash
 
 ### リリースタイプの変更
 
-現在は`simple`タイプを使用していますが、必要に応じて変更可能です：
+現在は`simple`タイプを使用していますが、`release-please-config.json`を編集することで変更可能です：
 
-```bash
-# .gh-hooks.sh の _gh_hooks_run_release_please の引数を変更
-_gh_hooks_run_release_please node    # Node.jsプロジェクト
-_gh_hooks_run_release_please rust    # Rustプロジェクト
-_gh_hooks_run_release_please python  # Pythonプロジェクト
+```json
+{
+  "release-type": "node",  // または "rust", "python" など
+  ...
+}
 ```
 
 ### リリースPRパターンの変更

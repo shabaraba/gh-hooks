@@ -14,14 +14,24 @@ gh_hook_pr_merged() {
 
   echo "✓ PR #${pr_number} merged: ${pr_title}"
 
-  # release-pleaseをGitHub Actionsで実行
-  # Note: ローカルからWorkflow Dispatchを使ってrelease-pleaseを起動
-  if command -v gh >/dev/null 2>&1; then
-    echo "Running release-please via GitHub Actions..."
-    command gh workflow run release-please.yml 2>/dev/null || {
-      echo "Note: release-please workflow not configured yet"
-      echo "Create .github/workflows/release-please.yml to enable automatic releases"
-    }
+  # release-pleaseをローカルで実行してリリースPRを作成・更新
+  if command -v npx >/dev/null 2>&1; then
+    echo "Running release-please..."
+
+    # release-pleaseを実行してリリースPRを作成
+    npx release-please release-pr \
+      --repo-url="shabaraba/gh-hooks" \
+      --token="${GITHUB_TOKEN}" \
+      --config-file=release-please-config.json \
+      --manifest-file=.release-please-manifest.json
+
+    if [ $? -eq 0 ]; then
+      echo "✓ Release PR created/updated successfully"
+    else
+      echo "✗ Failed to run release-please (check GITHUB_TOKEN)"
+    fi
+  else
+    echo "✗ npx not found - install Node.js to use release-please"
   fi
 }
 
@@ -31,7 +41,23 @@ gh_hook_release_pr_merged() {
 
   echo "✓ Release PR merged for version ${version}"
 
-  # GitHubリリースはrelease-pleaseのワークフローが自動的に作成するため
-  # ここでは特に何もしない
-  echo "GitHub release will be created automatically by release-please workflow"
+  # GitHubリリースを作成
+  if command -v npx >/dev/null 2>&1; then
+    echo "Creating GitHub release for v${version}..."
+
+    # release-pleaseでGitHubリリースを作成
+    npx release-please github-release \
+      --repo-url="shabaraba/gh-hooks" \
+      --token="${GITHUB_TOKEN}" \
+      --config-file=release-please-config.json \
+      --manifest-file=.release-please-manifest.json
+
+    if [ $? -eq 0 ]; then
+      echo "✓ GitHub release v${version} created successfully"
+    else
+      echo "✗ Failed to create GitHub release (check GITHUB_TOKEN)"
+    fi
+  else
+    echo "✗ npx not found - install Node.js to use release-please"
+  fi
 }
