@@ -266,7 +266,7 @@ your-project/
    gh pr merge 123
    ```
 
-3. Verify `.gh-hooks.sh` exists in your project root:
+4. Verify `.gh-hooks.sh` exists in your project root:
    ```bash
    ls -la .gh-hooks.sh
    ```
