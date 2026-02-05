@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3](https://github.com/shabaraba/gh-hooks/compare/v0.1.2...v0.1.3) (2026-02-05)
+
+
+### Documentation
+
+* explain RC and profile file installation ([#12](https://github.com/shabaraba/gh-hooks/issues/12)) ([8d150be](https://github.com/shabaraba/gh-hooks/commit/8d150be7f7bde170bc5e719c336d91e2b134a478))
+
 ## [0.1.2](https://github.com/shabaraba/gh-hooks/compare/v0.1.1...v0.1.2) (2026-02-05)
 
 
