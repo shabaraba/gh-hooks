@@ -4,6 +4,7 @@ GitHub CLI hooks system - Automate workflows after `gh` commands
 
 [![GitHub](https://img.shields.io/badge/GitHub-shabaraba%2Fgh--hooks-blue)](https://github.com/shabaraba/gh-hooks)
 
+
 ## Installation
 
 ```bash
