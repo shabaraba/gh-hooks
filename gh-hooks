@@ -20,16 +20,17 @@ USAGE
   gh hooks <command> [flags]
 
 COMMANDS
-  install [shell]  Install shell integration (add hooks to your shell)
-                   Supported shells: bash, zsh, fish, nu
-                   If not specified, auto-detects from \$SHELL
-  uninstall        Remove shell integration
-  status           Show hook status and configuration
-  init [template]  Initialize .gh-hooks.sh in current project
-                   Templates: rust, node
-  enable           Enable hooks execution
-  disable          Disable hooks execution
-  help             Show this help
+  install [shell] [--force]  Install shell integration (add hooks to your shell)
+                             Supported shells: bash, zsh, fish, nu
+                             If not specified, auto-detects from \$SHELL
+                             Use --force to reinstall
+  uninstall                  Remove shell integration
+  status                     Show hook status and configuration
+  init [template]            Initialize .gh-hooks.sh in current project
+                             Templates: rust, node
+  enable                     Enable hooks execution
+  disable                    Disable hooks execution
+  help                       Show this help
 
 EXAMPLES
   # Install shell integration (auto-detect shell)
@@ -38,6 +39,10 @@ EXAMPLES
   # Install for specific shell
   gh hooks install zsh
   gh hooks install fish
+
+  # Force reinstall
+  gh hooks install --force
+  gh hooks install zsh --force
 
   # Initialize hooks in current project
   gh hooks init rust
@@ -58,7 +63,23 @@ EOF
 
 # Install shell integration
 cmd_install() {
-  local shell_type="${1:-auto}"
+  local shell_type="auto"
+  local force_install=0
+
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force|-f)
+        force_install=1
+        shift
+        ;;
+      *)
+        shell_type="$1"
+        shift
+        ;;
+    esac
+  done
+
   local shell_rc=""
   local source_command=""
 
@@ -138,8 +159,46 @@ cmd_install() {
 
   # Check if already installed
   if grep -q "gh-hooks" "$shell_rc" 2>/dev/null; then
-    echo "✓ gh-hooks is already installed in $shell_rc"
-    return 0
+    # Check if the path is correct
+    local current_path
+    current_path=$(grep "source.*gh-hooks.sh" "$shell_rc" | sed 's/.*source[[:space:]]*["'"'"']\(.*\)["'"'"'].*/\1/' | head -1)
+
+    if [ "$current_path" = "${SCRIPT_DIR}/gh-hooks.sh" ] && [ $force_install -eq 0 ]; then
+      echo "✓ gh-hooks is already installed in $shell_rc"
+      echo "  Path: ${SCRIPT_DIR}/gh-hooks.sh"
+      echo ""
+      echo "To reinstall, use: gh hooks install --force"
+      return 0
+    fi
+
+    if [ $force_install -eq 0 ]; then
+      echo "⚠ gh-hooks is installed but with a different path"
+      echo "  Current: $current_path"
+      echo "  New: ${SCRIPT_DIR}/gh-hooks.sh"
+      echo ""
+      read -p "Update to new path? [y/N] " -n 1 -r
+      echo
+
+      if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Installation cancelled"
+        echo "To force reinstall, use: gh hooks install --force"
+        return 1
+      fi
+    fi
+
+    # Remove old entry
+    echo "Removing old entry..."
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      # macOS
+      sed -i '' '/# gh-hooks: GitHub CLI hooks/d' "$shell_rc"
+      sed -i '' '/source.*gh-hooks/d' "$shell_rc"
+    else
+      # Linux
+      sed -i '/# gh-hooks: GitHub CLI hooks/d' "$shell_rc"
+      sed -i '/source.*gh-hooks/d' "$shell_rc"
+    fi
+
+    echo "✓ Removed old entry"
   fi
 
   # Add source line to RC file
