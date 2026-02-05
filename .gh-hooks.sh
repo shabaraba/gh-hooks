@@ -14,8 +14,15 @@ gh_hook_pr_merged() {
 
   echo "✓ PR #${pr_number} merged: ${pr_title}"
 
-  # release-pleaseを実行
-  _gh_hooks_run_release_please simple
+  # release-pleaseをGitHub Actionsで実行
+  # Note: ローカルからWorkflow Dispatchを使ってrelease-pleaseを起動
+  if command -v gh >/dev/null 2>&1; then
+    echo "Running release-please via GitHub Actions..."
+    command gh workflow run release-please.yml 2>/dev/null || {
+      echo "Note: release-please workflow not configured yet"
+      echo "Create .github/workflows/release-please.yml to enable automatic releases"
+    }
+  fi
 }
 
 # リリースPRマージ時: GitHubリリースを作成
@@ -24,6 +31,7 @@ gh_hook_release_pr_merged() {
 
   echo "✓ Release PR merged for version ${version}"
 
-  # GitHubリリースを作成
-  _gh_hooks_create_github_release "$version"
+  # GitHubリリースはrelease-pleaseのワークフローが自動的に作成するため
+  # ここでは特に何もしない
+  echo "GitHub release will be created automatically by release-please workflow"
 }
