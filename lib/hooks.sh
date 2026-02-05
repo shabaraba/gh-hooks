@@ -73,12 +73,34 @@ _gh_hooks_extract_version() {
 _gh_hooks_handle_pr_merge() {
   _gh_hooks_info "PR merge hook triggered"
 
-  local pr_number pr_title
-  pr_number=$(command gh pr view --json number -q .number 2>/dev/null)
-  pr_title=$(command gh pr view --json title -q .title 2>/dev/null)
+  # Extract PR number from arguments (gh pr merge <number>)
+  local pr_number=""
+  shift 2  # Skip "pr" and "merge"
 
-  if [ -z "$pr_number" ] || [ -z "$pr_title" ]; then
-    _gh_hooks_error "Could not get PR number or title"
+  # Find PR number from arguments (skip flags)
+  for arg in "$@"; do
+    if [[ "$arg" =~ ^[0-9]+$ ]]; then
+      pr_number="$arg"
+      break
+    fi
+  done
+
+  # If no PR number in args, try to get from current context
+  if [ -z "$pr_number" ]; then
+    pr_number=$(command gh pr view --json number -q .number 2>/dev/null)
+  fi
+
+  if [ -z "$pr_number" ]; then
+    _gh_hooks_error "Could not determine PR number"
+    return 1
+  fi
+
+  # Get PR info using the PR number
+  local pr_title
+  pr_title=$(command gh pr view "$pr_number" --json title -q .title 2>/dev/null)
+
+  if [ -z "$pr_title" ]; then
+    _gh_hooks_error "Could not get PR title for #$pr_number"
     return 1
   fi
 
