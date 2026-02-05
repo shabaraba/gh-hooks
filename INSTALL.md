@@ -53,38 +53,79 @@ Complete installation instructions for gh-hooks.
 
 ## Installation Methods
 
-### Method 1: Automated Install (Recommended)
+### Method 1: GitHub CLI Extension (Recommended)
 
-1. Clone or download gh-hooks:
+This is the easiest way to install and manage gh-hooks.
+
+1. **Install the extension:**
    ```bash
-   cd ~/workspace  # or any directory
-   git clone https://github.com/yourusername/gh-hooks.git
-   cd gh-hooks
+   gh extension install shabaraba/gh-hooks
    ```
 
-2. Run the installer:
+2. **Set up shell integration:**
    ```bash
-   ./install.sh
+   gh hooks install
    ```
 
-3. Restart your shell:
+   This will:
+   - Auto-detect your shell (bash or zsh)
+   - Add the necessary source line to your RC file
+   - Create a backup of your RC file
+
+3. **Reload your shell:**
    ```bash
+   exec $SHELL
+   # Or manually:
    source ~/.zshrc  # or ~/.bashrc
    ```
 
-4. Verify installation:
+4. **Verify installation:**
    ```bash
-   gh_hooks_status
+   gh hooks status
    ```
 
-### Method 2: Manual Install
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/gh-hooks.git ~/.gh-hooks
+   You should see:
+   ```
+   ✓ Shell integration: ACTIVE
    ```
 
-2. Add to your shell configuration:
+5. **Initialize project (optional):**
+   ```bash
+   cd your-project
+   gh hooks init rust  # or 'node' for Node.js projects
+   ```
+
+### Method 2: Manual GitHub CLI Extension Install
+
+If you prefer more control:
+
+1. **Clone to extensions directory:**
+   ```bash
+   mkdir -p ~/.local/share/gh/extensions
+   git clone https://github.com/shabaraba/gh-hooks.git \
+     ~/.local/share/gh/extensions/gh-hooks
+   ```
+
+2. **Set up shell integration:**
+   ```bash
+   gh hooks install
+   ```
+
+3. **Reload shell:**
+   ```bash
+   exec $SHELL
+   ```
+
+### Method 3: Standalone Install (Legacy)
+
+For users who don't want to use GitHub CLI extensions:
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/shabaraba/gh-hooks.git ~/.gh-hooks
+   ```
+
+2. **Add to your shell configuration:**
 
    **For zsh (`~/.zshrc`):**
    ```bash
@@ -96,7 +137,7 @@ Complete installation instructions for gh-hooks.
    echo 'source ~/.gh-hooks/gh-hooks.sh' >> ~/.bashrc
    ```
 
-3. Reload your shell:
+3. **Reload your shell:**
    ```bash
    source ~/.zshrc  # or ~/.bashrc
    ```
@@ -127,9 +168,26 @@ Fish shell is not yet supported. Planned for future versions.
 
 After installing gh-hooks globally, set up each project:
 
-### 1. Create `.gh-hooks.sh`
+### Quick Setup with Templates
 
-In your project root:
+**For Rust projects:**
+```bash
+cd your-project
+gh hooks init rust
+```
+
+**For Node.js/npm projects:**
+```bash
+cd your-project
+gh hooks init node
+```
+
+This creates a `.gh-hooks.sh` with pre-configured hooks for your project type.
+
+### Manual Setup
+
+If you prefer to create `.gh-hooks.sh` manually:
+
 ```bash
 cd your-project
 touch .gh-hooks.sh
@@ -197,20 +255,26 @@ export GH_HOOKS_DEBUG=1
 gh pr merge 123 --squash
 
 # Check status
-gh_hooks_status
+gh hooks status
 ```
 
 ## Updating gh-hooks
 
-### Update Global Installation
+### Update Extension
 
 ```bash
-cd ~/.gh-hooks
-git pull origin main
+# Update to latest version
+gh extension upgrade hooks
 
-# Or re-run installer
-cd ~/workspace/gh-hooks
-./install.sh
+# Or update all extensions
+gh extension upgrade --all
+```
+
+### Update Manually
+
+```bash
+cd ~/.local/share/gh/extensions/gh-hooks
+git pull origin main
 ```
 
 ### Update Project Config
@@ -221,23 +285,35 @@ If the hook API changes, you may need to update your `.gh-hooks.sh`:
 # Backup your current config
 cp .gh-hooks.sh .gh-hooks.sh.backup
 
-# Compare with new template
-diff .gh-hooks.sh ~/.gh-hooks/examples/rust-crates.sh
+# Re-generate from template
+gh hooks init rust  # or 'node'
 
-# Update as needed
+# Manually merge your customizations
 ```
 
 ## Uninstallation
 
-### Remove Global Installation
+### Using Extension Commands (Recommended)
 
 ```bash
-# Remove files
-rm -rf ~/.gh-hooks
+# Remove shell integration
+gh hooks uninstall
 
-# Remove from shell config
-# Edit ~/.zshrc or ~/.bashrc and remove the line:
-# source ~/.gh-hooks/gh-hooks.sh
+# Remove the extension
+gh extension remove hooks
+```
+
+### Manual Uninstallation
+
+```bash
+# Remove shell integration lines from RC file
+# (gh hooks uninstall creates a backup automatically)
+
+# Remove extension
+rm -rf ~/.local/share/gh/extensions/gh-hooks
+
+# For standalone install
+rm -rf ~/.gh-hooks
 ```
 
 ### Remove Project Config

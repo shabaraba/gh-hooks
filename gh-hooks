@@ -1,0 +1,316 @@
+#!/bin/bash
+# gh-hooks - GitHub CLI extension for hook management
+# This is the main entry point for the gh extension
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GH_HOOKS_VERSION="0.1.0"
+
+# Source utility functions
+# shellcheck source=lib/utils.sh
+source "${SCRIPT_DIR}/lib/utils.sh"
+
+# Help text
+show_help() {
+  cat <<EOF
+gh hooks - Add hook functionality to GitHub CLI commands
+
+USAGE
+  gh hooks <command> [flags]
+
+COMMANDS
+  install     Install shell integration (add hooks to your shell)
+  uninstall   Remove shell integration
+  status      Show hook status and configuration
+  init        Initialize .gh-hooks.sh in current project
+  enable      Enable hooks execution
+  disable     Disable hooks execution
+  help        Show this help
+
+EXAMPLES
+  # Install shell integration
+  gh hooks install
+
+  # Initialize hooks in current project
+  gh hooks init rust
+
+  # Check hook status
+  gh hooks status
+
+  # Disable hooks temporarily
+  gh hooks disable
+
+VERSION
+  ${GH_HOOKS_VERSION}
+
+DOCUMENTATION
+  https://github.com/shabaraba/gh-hooks
+EOF
+}
+
+# Install shell integration
+cmd_install() {
+  local shell_type="${1:-auto}"
+  local shell_rc=""
+
+  # Detect shell
+  if [ "$shell_type" = "auto" ]; then
+    if [ -n "$BASH_VERSION" ]; then
+      shell_type="bash"
+    elif [ -n "$ZSH_VERSION" ]; then
+      shell_type="zsh"
+    else
+      echo "Error: Could not detect shell type. Please specify: bash or zsh"
+      exit 1
+    fi
+  fi
+
+  # Determine RC file
+  case "$shell_type" in
+    bash)
+      shell_rc="${HOME}/.bashrc"
+      ;;
+    zsh)
+      shell_rc="${HOME}/.zshrc"
+      ;;
+    *)
+      echo "Error: Unsupported shell: $shell_type"
+      echo "Supported shells: bash, zsh"
+      exit 1
+      ;;
+  esac
+
+  # Check if already installed
+  if grep -q "gh-hooks/gh-hooks.sh" "$shell_rc" 2>/dev/null; then
+    echo "✓ gh-hooks is already installed in $shell_rc"
+    return 0
+  fi
+
+  # Add source line to RC file
+  cat >> "$shell_rc" <<EOF
+
+# gh-hooks: GitHub CLI hooks
+source "${SCRIPT_DIR}/gh-hooks.sh"
+EOF
+
+  echo "✓ gh-hooks installed successfully!"
+  echo ""
+  echo "To activate, run one of:"
+  echo "  source $shell_rc"
+  echo "  exec $SHELL"
+  echo ""
+  echo "Then run 'gh hooks status' to verify installation."
+}
+
+# Uninstall shell integration
+cmd_uninstall() {
+  local shell_rc_files=(
+    "${HOME}/.bashrc"
+    "${HOME}/.zshrc"
+  )
+
+  local found=0
+
+  for rc_file in "${shell_rc_files[@]}"; do
+    if [ -f "$rc_file" ] && grep -q "gh-hooks/gh-hooks.sh" "$rc_file"; then
+      # Create backup
+      cp "$rc_file" "${rc_file}.gh-hooks.backup"
+
+      # Remove gh-hooks lines
+      sed -i.tmp '/# gh-hooks: GitHub CLI hooks/,/source.*gh-hooks\/gh-hooks.sh/d' "$rc_file"
+      rm -f "${rc_file}.tmp"
+
+      echo "✓ Removed gh-hooks from $rc_file"
+      echo "  (Backup saved to ${rc_file}.gh-hooks.backup)"
+      found=1
+    fi
+  done
+
+  if [ $found -eq 0 ]; then
+    echo "gh-hooks is not installed in any RC file"
+    return 1
+  fi
+
+  echo ""
+  echo "To complete uninstallation, restart your shell or run:"
+  echo "  exec \$SHELL"
+}
+
+# Show status
+cmd_status() {
+  echo "gh-hooks status"
+  echo "==============="
+  echo ""
+
+  # Check if wrapper function is loaded
+  if type gh 2>/dev/null | grep -q "gh is a function"; then
+    echo "✓ Shell integration: ACTIVE"
+    echo "  Hooks wrapper function is loaded"
+  else
+    echo "✗ Shell integration: NOT ACTIVE"
+    echo "  Run 'gh hooks install' to set up"
+    return 1
+  fi
+
+  echo ""
+
+  # Check if in git repo
+  if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    echo "✗ Git repository: NOT FOUND"
+    echo "  Not in a git repository"
+    return 1
+  fi
+
+  echo "✓ Git repository: FOUND"
+
+  # Find project root
+  local project_root
+  project_root=$(git rev-parse --show-toplevel 2>/dev/null)
+
+  if [ -z "$project_root" ]; then
+    echo "✗ Project root: NOT FOUND"
+    return 1
+  fi
+
+  echo "  Root: $project_root"
+  echo ""
+
+  # Check for .gh-hooks.sh
+  if [ -f "${project_root}/.gh-hooks.sh" ]; then
+    echo "✓ Project configuration: FOUND"
+    echo "  File: ${project_root}/.gh-hooks.sh"
+
+    # List defined hooks
+    echo ""
+    echo "Defined hooks:"
+    local hooks=(
+      "gh_hook_pr_merged"
+      "gh_hook_pr_created"
+      "gh_hook_pr_closed"
+      "gh_hook_release_created"
+      "gh_hook_release_pr_merged"
+    )
+
+    # shellcheck source=/dev/null
+    source "${project_root}/.gh-hooks.sh" 2>/dev/null || true
+
+    for hook in "${hooks[@]}"; do
+      if type "$hook" >/dev/null 2>&1; then
+        echo "  ✓ $hook"
+      else
+        echo "  - $hook (not defined)"
+      fi
+    done
+  else
+    echo "✗ Project configuration: NOT FOUND"
+    echo "  Run 'gh hooks init' to create .gh-hooks.sh"
+  fi
+
+  echo ""
+
+  # Check environment
+  echo "Environment:"
+  echo "  GH_HOOKS_ENABLED=${GH_HOOKS_ENABLED:-1}"
+  echo "  GH_HOOKS_DEBUG=${GH_HOOKS_DEBUG:-0}"
+
+  if [ -n "$GITHUB_TOKEN" ]; then
+    echo "  GITHUB_TOKEN=***set***"
+  else
+    echo "  GITHUB_TOKEN=(not set)"
+  fi
+}
+
+# Initialize project configuration
+cmd_init() {
+  local template="${1:-rust}"
+  local target_file=".gh-hooks.sh"
+
+  if [ -f "$target_file" ]; then
+    echo "Error: $target_file already exists"
+    echo "Remove it first or edit it manually"
+    exit 1
+  fi
+
+  local template_file=""
+  case "$template" in
+    rust)
+      template_file="${SCRIPT_DIR}/examples/rust-crates.sh"
+      ;;
+    node|npm)
+      template_file="${SCRIPT_DIR}/examples/npm-publish.sh"
+      ;;
+    *)
+      echo "Error: Unknown template: $template"
+      echo "Available templates: rust, node"
+      exit 1
+      ;;
+  esac
+
+  if [ ! -f "$template_file" ]; then
+    echo "Error: Template file not found: $template_file"
+    exit 1
+  fi
+
+  cp "$template_file" "$target_file"
+  chmod +x "$target_file"
+
+  echo "✓ Created $target_file from $template template"
+  echo ""
+  echo "Next steps:"
+  echo "  1. Edit $target_file to customize hooks"
+  echo "  2. Set GITHUB_TOKEN environment variable"
+  echo "  3. Run 'gh pr merge' to test hooks"
+}
+
+# Enable hooks
+cmd_enable() {
+  echo "export GH_HOOKS_ENABLED=1" >> "${HOME}/.gh-hooks-config"
+  echo "✓ Hooks enabled"
+  echo "  Run 'exec \$SHELL' to reload"
+}
+
+# Disable hooks
+cmd_disable() {
+  echo "export GH_HOOKS_ENABLED=0" >> "${HOME}/.gh-hooks-config"
+  echo "✓ Hooks disabled"
+  echo "  Run 'exec \$SHELL' to reload"
+}
+
+# Main command dispatcher
+main() {
+  local cmd="${1:-help}"
+  shift || true
+
+  case "$cmd" in
+    install)
+      cmd_install "$@"
+      ;;
+    uninstall)
+      cmd_uninstall "$@"
+      ;;
+    status)
+      cmd_status "$@"
+      ;;
+    init)
+      cmd_init "$@"
+      ;;
+    enable)
+      cmd_enable "$@"
+      ;;
+    disable)
+      cmd_disable "$@"
+      ;;
+    help|--help|-h)
+      show_help
+      ;;
+    *)
+      echo "Error: Unknown command: $cmd"
+      echo ""
+      show_help
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

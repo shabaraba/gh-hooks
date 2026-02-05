@@ -2,6 +2,21 @@
 
 GitHub CLI hooks system - Automate workflows after `gh` commands
 
+[![GitHub](https://img.shields.io/badge/GitHub-shabaraba%2Fgh--hooks-blue)](https://github.com/shabaraba/gh-hooks)
+
+## Installation
+
+```bash
+# Install as GitHub CLI extension
+gh extension install shabaraba/gh-hooks
+
+# Set up shell integration
+gh hooks install
+
+# Reload your shell
+exec $SHELL
+```
+
 ## Overview
 
 `gh-hooks` adds hook functionality to GitHub CLI (`gh` command), allowing you to automatically execute custom scripts after certain GitHub operations. This enables local CI/CD workflows without relying on GitHub Actions minutes.
@@ -34,27 +49,36 @@ GitHub CLI hooks system - Automate workflows after `gh` commands
 
 ## Quick Start
 
-### 1. Install
+### 1. Install as GitHub CLI Extension (Recommended)
 
 ```bash
-cd gh-hooks
-./install.sh
+# Install the extension
+gh extension install shabaraba/gh-hooks
+
+# Set up shell integration
+gh hooks install
+
+# Reload your shell
+exec $SHELL
 ```
 
-This will:
-- Copy files to `~/.gh-hooks/`
-- Add `source ~/.gh-hooks/gh-hooks.sh` to your shell config (`.zshrc` or `.bashrc`)
+### 2. Initialize Project Configuration
 
-### 2. Restart Your Shell
+In your project root:
 
 ```bash
-# Reload your shell configuration
-source ~/.zshrc  # or ~/.bashrc
+# For Rust projects
+gh hooks init rust
+
+# For Node.js/npm projects
+gh hooks init node
 ```
 
-### 3. Create Project Configuration
+This creates a `.gh-hooks.sh` with example hooks.
 
-In your project root, create `.gh-hooks.sh`:
+### 3. Customize `.gh-hooks.sh`
+
+Edit the generated `.gh-hooks.sh` in your project root:
 
 ```bash
 #!/bin/bash
@@ -143,19 +167,36 @@ gh_hook_release_pr_merged() {
 | `GH_HOOKS_DEBUG` | `0` | Debug mode (0=off, 1=on) |
 | `GH_HOOKS_RELEASE_PATTERN` | `^chore\(main\): release` | Pattern to detect release PRs |
 
-### Commands
+### Extension Commands
 
 ```bash
 # Show current status
-gh_hooks_status
+gh hooks status
+
+# Initialize project configuration
+gh hooks init rust       # For Rust projects
+gh hooks init node       # For Node.js projects
 
 # Temporarily disable hooks
-gh_disable_hooks
+gh hooks disable
 
 # Re-enable hooks
-gh_enable_hooks
+gh hooks enable
+
+# Uninstall shell integration
+gh hooks uninstall
 
 # Show help
+gh hooks help
+```
+
+### Legacy Shell Commands (still available)
+
+```bash
+# These commands are also available for direct use
+gh_hooks_status
+gh_disable_hooks
+gh_enable_hooks
 gh_hooks_help
 ```
 
@@ -202,10 +243,16 @@ your-project/
 
 1. Check if hooks are enabled:
    ```bash
-   gh_hooks_status
+   gh hooks status
    ```
 
-2. Enable debug mode:
+2. Verify shell integration:
+   ```bash
+   type gh | grep function
+   # Should show "gh is a function"
+   ```
+
+3. Enable debug mode:
    ```bash
    export GH_HOOKS_DEBUG=1
    gh pr merge 123
