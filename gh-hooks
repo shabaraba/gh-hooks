@@ -188,14 +188,22 @@ cmd_install() {
 
     # Remove old entry
     echo "Removing old entry..."
+
+    # Resolve symlink if needed
+    local target_file="$shell_rc"
+    if [ -L "$shell_rc" ]; then
+      target_file="$(readlink -f "$shell_rc" 2>/dev/null || readlink "$shell_rc")"
+      echo "Note: $shell_rc is a symlink to $target_file"
+    fi
+
     if [[ "$OSTYPE" == "darwin"* ]]; then
       # macOS
-      sed -i '' '/# gh-hooks: GitHub CLI hooks/d' "$shell_rc"
-      sed -i '' '/source.*gh-hooks/d' "$shell_rc"
+      sed -i '' '/# gh-hooks: GitHub CLI hooks/d' "$target_file"
+      sed -i '' '/source.*gh-hooks/d' "$target_file"
     else
       # Linux
-      sed -i '/# gh-hooks: GitHub CLI hooks/d' "$shell_rc"
-      sed -i '/source.*gh-hooks/d' "$shell_rc"
+      sed -i '/# gh-hooks: GitHub CLI hooks/d' "$target_file"
+      sed -i '/source.*gh-hooks/d' "$target_file"
     fi
 
     echo "✓ Removed old entry"
