@@ -10,12 +10,17 @@ GitHub CLI hooks system - Automate workflows after `gh` commands
 # Install as GitHub CLI extension
 gh extension install shabaraba/gh-hooks
 
-# Set up shell integration
+# Set up shell integration (auto-detects your shell)
 gh hooks install
+
+# Or specify shell explicitly (bash, zsh, fish, nu)
+gh hooks install zsh
 
 # Reload your shell
 exec $SHELL
 ```
+
+**Supported shells:** bash, zsh, fish, nushell
 
 ## Overview
 
@@ -55,8 +60,11 @@ exec $SHELL
 # Install the extension
 gh extension install shabaraba/gh-hooks
 
-# Set up shell integration
+# Set up shell integration (auto-detects from $SHELL)
 gh hooks install
+
+# Or specify your shell (bash, zsh, fish, nu)
+gh hooks install zsh
 
 # Reload your shell
 exec $SHELL

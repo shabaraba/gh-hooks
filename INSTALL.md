@@ -6,11 +6,13 @@ Complete installation instructions for gh-hooks.
 
 ### Required
 
-- **Bash 4.0+** or **zsh 5.0+**
+- **Supported Shell**: bash, zsh, fish, or nushell
   ```bash
-  # Check your version
-  bash --version  # Should be 4.0 or higher
-  zsh --version   # Should be 5.0 or higher
+  # Check your shell version
+  bash --version  # Bash 4.0+
+  zsh --version   # Zsh 5.0+
+  fish --version  # Fish 3.0+
+  nu --version    # Nushell 0.80+
   ```
 
 - **GitHub CLI (`gh`)**
@@ -64,13 +66,20 @@ This is the easiest way to install and manage gh-hooks.
 
 2. **Set up shell integration:**
    ```bash
+   # Auto-detect shell from $SHELL
    gh hooks install
+
+   # Or specify shell explicitly
+   gh hooks install zsh
+   gh hooks install bash
+   gh hooks install fish
+   gh hooks install nu
    ```
 
    This will:
-   - Auto-detect your shell (bash or zsh)
+   - Auto-detect your shell (bash, zsh, fish, or nu)
    - Add the necessary source line to your RC file
-   - Create a backup of your RC file
+   - Create config directory and file if they don't exist
 
 3. **Reload your shell:**
    ```bash
@@ -148,7 +157,7 @@ For users who don't want to use GitHub CLI extensions:
 
 Add to `~/.zshrc`:
 ```bash
-# gh-hooks
+# gh-hooks: GitHub CLI hooks
 source ~/.gh-hooks/gh-hooks.sh
 ```
 
@@ -156,13 +165,29 @@ source ~/.gh-hooks/gh-hooks.sh
 
 Add to `~/.bashrc` (Linux) or `~/.bash_profile` (macOS):
 ```bash
-# gh-hooks
+# gh-hooks: GitHub CLI hooks
 source ~/.gh-hooks/gh-hooks.sh
 ```
 
 ### Fish Shell
 
-Fish shell is not yet supported. Planned for future versions.
+Add to `~/.config/fish/config.fish`:
+```fish
+# gh-hooks: GitHub CLI hooks
+source ~/.gh-hooks/gh-hooks.fish
+```
+
+**Note:** Fish shell integration is added but `gh-hooks.fish` will be available in a future version.
+
+### Nushell
+
+Add to `~/.config/nushell/config.nu`:
+```nu
+# gh-hooks: GitHub CLI hooks
+source ~/.gh-hooks/gh-hooks.nu
+```
+
+**Note:** Nushell integration is added but `gh-hooks.nu` will be available in a future version.
 
 ## Project Setup
 

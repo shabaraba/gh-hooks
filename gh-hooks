@@ -20,17 +20,24 @@ USAGE
   gh hooks <command> [flags]
 
 COMMANDS
-  install     Install shell integration (add hooks to your shell)
-  uninstall   Remove shell integration
-  status      Show hook status and configuration
-  init        Initialize .gh-hooks.sh in current project
-  enable      Enable hooks execution
-  disable     Disable hooks execution
-  help        Show this help
+  install [shell]  Install shell integration (add hooks to your shell)
+                   Supported shells: bash, zsh, fish, nu
+                   If not specified, auto-detects from \$SHELL
+  uninstall        Remove shell integration
+  status           Show hook status and configuration
+  init [template]  Initialize .gh-hooks.sh in current project
+                   Templates: rust, node
+  enable           Enable hooks execution
+  disable          Disable hooks execution
+  help             Show this help
 
 EXAMPLES
-  # Install shell integration
+  # Install shell integration (auto-detect shell)
   gh hooks install
+
+  # Install for specific shell
+  gh hooks install zsh
+  gh hooks install fish
 
   # Initialize hooks in current project
   gh hooks init rust
@@ -53,36 +60,84 @@ EOF
 cmd_install() {
   local shell_type="${1:-auto}"
   local shell_rc=""
+  local source_command=""
 
   # Detect shell
   if [ "$shell_type" = "auto" ]; then
-    if [ -n "$BASH_VERSION" ]; then
-      shell_type="bash"
-    elif [ -n "$ZSH_VERSION" ]; then
-      shell_type="zsh"
-    else
-      echo "Error: Could not detect shell type. Please specify: bash or zsh"
-      exit 1
-    fi
+    local current_shell="$(basename "$SHELL")"
+    case "$current_shell" in
+      bash)
+        shell_type="bash"
+        ;;
+      zsh)
+        shell_type="zsh"
+        ;;
+      fish)
+        shell_type="fish"
+        ;;
+      nu)
+        shell_type="nu"
+        ;;
+      *)
+        echo "Error: Could not detect shell type from SHELL=$SHELL"
+        echo "Please specify one of: bash, zsh, fish, nu"
+        exit 1
+        ;;
+    esac
   fi
 
-  # Determine RC file
+  # Determine RC file and source command
   case "$shell_type" in
     bash)
-      shell_rc="${HOME}/.bashrc"
+      # macOS uses .bash_profile, Linux uses .bashrc
+      if [[ "$OSTYPE" == "darwin"* ]] && [ -f "${HOME}/.bash_profile" ]; then
+        shell_rc="${HOME}/.bash_profile"
+      else
+        shell_rc="${HOME}/.bashrc"
+      fi
+      source_command="source \"${SCRIPT_DIR}/gh-hooks.sh\""
       ;;
     zsh)
       shell_rc="${HOME}/.zshrc"
+      source_command="source \"${SCRIPT_DIR}/gh-hooks.sh\""
+      ;;
+    fish)
+      shell_rc="${HOME}/.config/fish/config.fish"
+      # Fish uses different syntax
+      source_command="source \"${SCRIPT_DIR}/gh-hooks.fish\""
+      ;;
+    nu)
+      shell_rc="${HOME}/.config/nushell/config.nu"
+      # Nushell uses different syntax
+      source_command="source \"${SCRIPT_DIR}/gh-hooks.nu\""
       ;;
     *)
       echo "Error: Unsupported shell: $shell_type"
-      echo "Supported shells: bash, zsh"
+      echo "Supported shells: bash, zsh, fish, nu"
       exit 1
       ;;
   esac
 
+  # Create config directory if it doesn't exist
+  local config_dir="$(dirname "$shell_rc")"
+  if [ ! -d "$config_dir" ]; then
+    mkdir -p "$config_dir"
+    echo "Created directory: $config_dir"
+  fi
+
+  # Create RC file if it doesn't exist
+  # Check both file existence and if it's a broken symlink
+  if [ ! -f "$shell_rc" ] && [ ! -L "$shell_rc" ]; then
+    touch "$shell_rc"
+    echo "Created $shell_rc"
+  elif [ -L "$shell_rc" ] && [ ! -e "$shell_rc" ]; then
+    echo "Warning: $shell_rc is a broken symlink"
+    echo "Please fix the symlink or remove it before installing"
+    return 1
+  fi
+
   # Check if already installed
-  if grep -q "gh-hooks/gh-hooks.sh" "$shell_rc" 2>/dev/null; then
+  if grep -q "gh-hooks" "$shell_rc" 2>/dev/null; then
     echo "✓ gh-hooks is already installed in $shell_rc"
     return 0
   fi
@@ -91,38 +146,82 @@ cmd_install() {
   cat >> "$shell_rc" <<EOF
 
 # gh-hooks: GitHub CLI hooks
-source "${SCRIPT_DIR}/gh-hooks.sh"
+${source_command}
 EOF
 
   echo "✓ gh-hooks installed successfully!"
+  echo "  Shell: $shell_type"
+  echo "  Config: $shell_rc"
   echo ""
-  echo "To activate, run one of:"
-  echo "  source $shell_rc"
-  echo "  exec $SHELL"
+
+  # Show shell-specific activation instructions
+  case "$shell_type" in
+    fish)
+      echo "To activate, restart your shell or run:"
+      echo "  exec fish"
+      ;;
+    nu)
+      echo "To activate, restart your shell"
+      ;;
+    *)
+      echo "To activate, run one of:"
+      echo "  source $shell_rc"
+      echo "  exec $SHELL"
+      ;;
+  esac
+
   echo ""
   echo "Then run 'gh hooks status' to verify installation."
+
+  # Warn if shell-specific file doesn't exist
+  case "$shell_type" in
+    fish)
+      if [ ! -f "${SCRIPT_DIR}/gh-hooks.fish" ]; then
+        echo ""
+        echo "⚠ Warning: ${SCRIPT_DIR}/gh-hooks.fish not found"
+        echo "  Fish shell support will be added in a future version"
+      fi
+      ;;
+    nu)
+      if [ ! -f "${SCRIPT_DIR}/gh-hooks.nu" ]; then
+        echo ""
+        echo "⚠ Warning: ${SCRIPT_DIR}/gh-hooks.nu not found"
+        echo "  Nushell support will be added in a future version"
+      fi
+      ;;
+  esac
 }
 
 # Uninstall shell integration
 cmd_uninstall() {
   local shell_rc_files=(
     "${HOME}/.bashrc"
+    "${HOME}/.bash_profile"
     "${HOME}/.zshrc"
+    "${HOME}/.config/fish/config.fish"
+    "${HOME}/.config/nushell/config.nu"
   )
 
   local found=0
 
   for rc_file in "${shell_rc_files[@]}"; do
-    if [ -f "$rc_file" ] && grep -q "gh-hooks/gh-hooks.sh" "$rc_file"; then
-      # Create backup
-      cp "$rc_file" "${rc_file}.gh-hooks.backup"
+    if [ -f "$rc_file" ] && grep -q "gh-hooks" "$rc_file"; then
+      # Resolve symlink if it is one
+      local target_file="$rc_file"
+      if [ -L "$rc_file" ]; then
+        target_file="$(readlink -f "$rc_file" 2>/dev/null || readlink "$rc_file")"
+        echo "Note: $rc_file is a symlink to $target_file"
+      fi
 
-      # Remove gh-hooks lines
-      sed -i.tmp '/# gh-hooks: GitHub CLI hooks/,/source.*gh-hooks\/gh-hooks.sh/d' "$rc_file"
-      rm -f "${rc_file}.tmp"
+      # Create backup
+      cp "$target_file" "${target_file}.gh-hooks.backup"
+
+      # Remove gh-hooks lines using a temporary file
+      grep -v -e "# gh-hooks: GitHub CLI hooks" -e "source.*gh-hooks" "$target_file" > "${target_file}.tmp"
+      mv "${target_file}.tmp" "$target_file"
 
       echo "✓ Removed gh-hooks from $rc_file"
-      echo "  (Backup saved to ${rc_file}.gh-hooks.backup)"
+      echo "  (Backup saved to ${target_file}.gh-hooks.backup)"
       found=1
     fi
   done
