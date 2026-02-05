@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1](https://github.com/shabaraba/gh-hooks/compare/v0.1.0...v0.1.1) (2026-02-05)
+
+
+### Features
+
+* add force install option and path verification ([c3a554c](https://github.com/shabaraba/gh-hooks/commit/c3a554cd5607c791e85da5763ac07f24d768e2e1))
+* add GitHub CLI extension support ([7eeca9b](https://github.com/shabaraba/gh-hooks/commit/7eeca9bc2a79e075fa5eddc2f6dd0074b7629110))
+* add multi-shell support (bash, zsh, fish, nushell) ([c2bc54c](https://github.com/shabaraba/gh-hooks/commit/c2bc54c3f8f7e4b421438269d4c296cc11375da0))
+* add release automation with release-please ([#1](https://github.com/shabaraba/gh-hooks/issues/1)) ([a439848](https://github.com/shabaraba/gh-hooks/commit/a43984821ff2965194a8b50ee5f3d7ebb90b8aba))
+* implement gh-hooks library for GitHub CLI automation ([b66cf75](https://github.com/shabaraba/gh-hooks/commit/b66cf7574138c3862cdcb3cb1294c6ffd68c1e8c))
+* improve overview description in README ([#2](https://github.com/shabaraba/gh-hooks/issues/2)) ([112cf03](https://github.com/shabaraba/gh-hooks/commit/112cf0304fe1fbbcae72e6b6bad9a195dc90079e))
+
+
+### Bug Fixes
+
+* add multi-shell support for export syntax (bash/zsh compatibility) ([d4d058a](https://github.com/shabaraba/gh-hooks/commit/d4d058a4c761554351d12662bcde987abb3dcf54))
+* extract PR number from merge command arguments ([30ebe1f](https://github.com/shabaraba/gh-hooks/commit/30ebe1fccf05e30d342c74d119da0947d3458bc1))
+* handle symlinked shell RC files in force install ([d9e9e3e](https://github.com/shabaraba/gh-hooks/commit/d9e9e3eaa5d0b018969613ec27b8d23a9ff5cf47))
+* improve gh hooks status command for multi-process detection ([3f7ccf5](https://github.com/shabaraba/gh-hooks/commit/3f7ccf5574592de89bb55829fae3d61160ac029f))
+
+
+### Documentation
+
+* clarify nushell abbreviation ([#3](https://github.com/shabaraba/gh-hooks/issues/3)) ([67daeb1](https://github.com/shabaraba/gh-hooks/commit/67daeb132bf0e063975cb5852a9ac5955db10e73))
+
 ## [0.1.0] - 2025-02-05
 
 ### Features
