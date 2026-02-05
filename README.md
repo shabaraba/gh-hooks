@@ -20,7 +20,7 @@ gh hooks install zsh
 exec $SHELL
 ```
 
-**Supported shells:** bash, zsh, fish, nushell
+**Supported shells:** bash, zsh, fish, nushell (nu)
 
 ## Overview
 
