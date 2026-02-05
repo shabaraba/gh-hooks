@@ -242,12 +242,31 @@ cmd_status() {
   echo "==============="
   echo ""
 
-  # Check if wrapper function is loaded
-  if type gh 2>/dev/null | grep -q "gh is a function"; then
-    echo "✓ Shell integration: ACTIVE"
-    echo "  Hooks wrapper function is loaded"
+  # Check if gh-hooks.sh is sourced in shell RC files
+  local shell_rc_files=(
+    "${HOME}/.bashrc"
+    "${HOME}/.bash_profile"
+    "${HOME}/.zshrc"
+    "${HOME}/.config/fish/config.fish"
+  )
+
+  local installed=0
+  local rc_file_found=""
+
+  for rc_file in "${shell_rc_files[@]}"; do
+    if [ -f "$rc_file" ] && grep -q "gh-hooks" "$rc_file" 2>/dev/null; then
+      installed=1
+      rc_file_found="$rc_file"
+      break
+    fi
+  done
+
+  if [ $installed -eq 1 ]; then
+    echo "✓ Shell integration: INSTALLED"
+    echo "  Config file: $rc_file_found"
+    echo "  Note: Use 'gh_hooks_status' function in your shell for live status"
   else
-    echo "✗ Shell integration: NOT ACTIVE"
+    echo "✗ Shell integration: NOT INSTALLED"
     echo "  Run 'gh hooks install' to set up"
     return 1
   fi
@@ -258,7 +277,7 @@ cmd_status() {
   if ! git rev-parse --git-dir >/dev/null 2>&1; then
     echo "✗ Git repository: NOT FOUND"
     echo "  Not in a git repository"
-    return 1
+    return 0
   fi
 
   echo "✓ Git repository: FOUND"
