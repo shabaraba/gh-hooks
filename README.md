@@ -278,9 +278,24 @@ Test your config file:
 bash -n .gh-hooks.sh
 ```
 
+## This Project's Hooks Setup
+
+このプロジェクト自体もgh-hooksを使用してリリースプロセスを自動化しています。
+
+- **設定ファイル**: [`.gh-hooks.sh`](.gh-hooks.sh)
+- **詳細ドキュメント**: [HOOKS_SETUP.md](HOOKS_SETUP.md)
+
+### リリースフロー
+
+1. PRマージ → release-pleaseが自動実行 → リリースPR作成
+2. リリースPRマージ → GitHubリリースが自動作成
+
+詳細は[HOOKS_SETUP.md](HOOKS_SETUP.md)を参照してください。
+
 ## Documentation
 
 - [INSTALL.md](INSTALL.md) - Detailed installation guide
+- [HOOKS_SETUP.md](HOOKS_SETUP.md) - This project's hooks configuration
 - [docs/API.md](docs/API.md) - Complete API reference
 - [docs/CUSTOM_HOOKS.md](docs/CUSTOM_HOOKS.md) - Writing custom hooks
 
