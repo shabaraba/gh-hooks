@@ -306,7 +306,3 @@ MIT License - See [LICENSE](LICENSE) file for details
 ## Contributing
 
 Contributions welcome! Please open an issue or PR.
-
-## Version
-
-0.1.0 (MVP)
