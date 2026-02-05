@@ -81,6 +81,7 @@ cmd_install() {
   done
 
   local shell_rc=""
+  local shell_profile=""
   local source_command=""
 
   # Detect shell
@@ -107,28 +108,35 @@ cmd_install() {
     esac
   fi
 
-  # Determine RC file and source command
+  # Determine RC file, profile file, and source command
   case "$shell_type" in
     bash)
       # macOS uses .bash_profile, Linux uses .bashrc
-      if [[ "$OSTYPE" == "darwin"* ]] && [ -f "${HOME}/.bash_profile" ]; then
-        shell_rc="${HOME}/.bash_profile"
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        shell_rc="${HOME}/.bashrc"
+        shell_profile="${HOME}/.bash_profile"
       else
         shell_rc="${HOME}/.bashrc"
+        shell_profile="${HOME}/.profile"
       fi
       source_command="source \"${SCRIPT_DIR}/gh-hooks.sh\""
       ;;
     zsh)
       shell_rc="${HOME}/.zshrc"
+      shell_profile="${HOME}/.zprofile"
       source_command="source \"${SCRIPT_DIR}/gh-hooks.sh\""
       ;;
     fish)
       shell_rc="${HOME}/.config/fish/config.fish"
+      # Fish doesn't have a separate profile file
+      shell_profile=""
       # Fish uses different syntax
       source_command="source \"${SCRIPT_DIR}/gh-hooks.fish\""
       ;;
     nu)
       shell_rc="${HOME}/.config/nushell/config.nu"
+      # Nushell doesn't have a separate profile file
+      shell_profile=""
       # Nushell uses different syntax
       source_command="source \"${SCRIPT_DIR}/gh-hooks.nu\""
       ;;
@@ -139,86 +147,104 @@ cmd_install() {
       ;;
   esac
 
-  # Create config directory if it doesn't exist
-  local config_dir="$(dirname "$shell_rc")"
-  if [ ! -d "$config_dir" ]; then
-    mkdir -p "$config_dir"
-    echo "Created directory: $config_dir"
-  fi
+  # Helper function to install to a single file
+  install_to_file() {
+    local target_file="$1"
+    local file_type="$2"  # "RC" or "profile"
 
-  # Create RC file if it doesn't exist
-  # Check both file existence and if it's a broken symlink
-  if [ ! -f "$shell_rc" ] && [ ! -L "$shell_rc" ]; then
-    touch "$shell_rc"
-    echo "Created $shell_rc"
-  elif [ -L "$shell_rc" ] && [ ! -e "$shell_rc" ]; then
-    echo "Warning: $shell_rc is a broken symlink"
-    echo "Please fix the symlink or remove it before installing"
-    return 1
-  fi
-
-  # Check if already installed
-  if grep -q "gh-hooks" "$shell_rc" 2>/dev/null; then
-    # Check if the path is correct
-    local current_path
-    current_path=$(grep "source.*gh-hooks.sh" "$shell_rc" | sed 's/.*source[[:space:]]*["'"'"']\(.*\)["'"'"'].*/\1/' | head -1)
-
-    if [ "$current_path" = "${SCRIPT_DIR}/gh-hooks.sh" ] && [ $force_install -eq 0 ]; then
-      echo "✓ gh-hooks is already installed in $shell_rc"
-      echo "  Path: ${SCRIPT_DIR}/gh-hooks.sh"
-      echo ""
-      echo "To reinstall, use: gh hooks install --force"
-      return 0
+    # Create config directory if it doesn't exist
+    local config_dir="$(dirname "$target_file")"
+    if [ ! -d "$config_dir" ]; then
+      mkdir -p "$config_dir"
+      echo "Created directory: $config_dir"
     fi
 
-    if [ $force_install -eq 0 ]; then
-      echo "⚠ gh-hooks is installed but with a different path"
-      echo "  Current: $current_path"
-      echo "  New: ${SCRIPT_DIR}/gh-hooks.sh"
-      echo ""
-      read -p "Update to new path? [y/N] " -n 1 -r
-      echo
+    # Create file if it doesn't exist
+    # Check both file existence and if it's a broken symlink
+    if [ ! -f "$target_file" ] && [ ! -L "$target_file" ]; then
+      touch "$target_file"
+      echo "Created $target_file"
+    elif [ -L "$target_file" ] && [ ! -e "$target_file" ]; then
+      echo "Warning: $target_file is a broken symlink"
+      echo "Please fix the symlink or remove it before installing"
+      return 1
+    fi
 
-      if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Installation cancelled"
-        echo "To force reinstall, use: gh hooks install --force"
-        return 1
+    # Check if already installed
+    if grep -q "gh-hooks" "$target_file" 2>/dev/null; then
+      # Check if the path is correct
+      local current_path
+      current_path=$(grep "source.*gh-hooks" "$target_file" | sed 's/.*source[[:space:]]*["'"'"']\(.*\)["'"'"'].*/\1/' | head -1)
+
+      if [ "$current_path" = "${SCRIPT_DIR}/gh-hooks.sh" ] && [ $force_install -eq 0 ]; then
+        echo "✓ gh-hooks is already installed in $target_file"
+        return 0
       fi
+
+      if [ $force_install -eq 0 ]; then
+        echo "⚠ gh-hooks is installed in $target_file but with a different path"
+        echo "  Current: $current_path"
+        echo "  New: ${SCRIPT_DIR}/gh-hooks.sh"
+        echo ""
+        read -p "Update to new path? [y/N] " -n 1 -r
+        echo
+
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+          echo "Installation cancelled"
+          echo "To force reinstall, use: gh hooks install --force"
+          return 1
+        fi
+      fi
+
+      # Remove old entry
+      echo "Removing old entry from $target_file..."
+
+      # Resolve symlink if needed
+      local actual_file="$target_file"
+      if [ -L "$target_file" ]; then
+        actual_file="$(readlink -f "$target_file" 2>/dev/null || readlink "$target_file")"
+        echo "Note: $target_file is a symlink to $actual_file"
+      fi
+
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        sed -i '' '/# gh-hooks: GitHub CLI hooks/d' "$actual_file"
+        sed -i '' '/source.*gh-hooks/d' "$actual_file"
+      else
+        # Linux
+        sed -i '/# gh-hooks: GitHub CLI hooks/d' "$actual_file"
+        sed -i '/source.*gh-hooks/d' "$actual_file"
+      fi
+
+      echo "✓ Removed old entry from $target_file"
     fi
 
-    # Remove old entry
-    echo "Removing old entry..."
-
-    # Resolve symlink if needed
-    local target_file="$shell_rc"
-    if [ -L "$shell_rc" ]; then
-      target_file="$(readlink -f "$shell_rc" 2>/dev/null || readlink "$shell_rc")"
-      echo "Note: $shell_rc is a symlink to $target_file"
-    fi
-
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-      # macOS
-      sed -i '' '/# gh-hooks: GitHub CLI hooks/d' "$target_file"
-      sed -i '' '/source.*gh-hooks/d' "$target_file"
-    else
-      # Linux
-      sed -i '/# gh-hooks: GitHub CLI hooks/d' "$target_file"
-      sed -i '/source.*gh-hooks/d' "$target_file"
-    fi
-
-    echo "✓ Removed old entry"
-  fi
-
-  # Add source line to RC file
-  cat >> "$shell_rc" <<EOF
+    # Add source line to file
+    cat >> "$target_file" <<EOF
 
 # gh-hooks: GitHub CLI hooks
 ${source_command}
 EOF
 
+    echo "✓ Installed to $target_file"
+  }
+
+  # Install to RC file
+  install_to_file "$shell_rc" "RC" || return 1
+
+  # Install to profile file if it exists for this shell
+  if [ -n "$shell_profile" ]; then
+    echo ""
+    install_to_file "$shell_profile" "profile" || return 1
+  fi
+
+  echo ""
   echo "✓ gh-hooks installed successfully!"
   echo "  Shell: $shell_type"
-  echo "  Config: $shell_rc"
+  echo "  RC file: $shell_rc"
+  if [ -n "$shell_profile" ]; then
+    echo "  Profile file: $shell_profile"
+  fi
   echo ""
 
   # Show shell-specific activation instructions
@@ -264,7 +290,9 @@ cmd_uninstall() {
   local shell_rc_files=(
     "${HOME}/.bashrc"
     "${HOME}/.bash_profile"
+    "${HOME}/.profile"
     "${HOME}/.zshrc"
+    "${HOME}/.zprofile"
     "${HOME}/.config/fish/config.fish"
     "${HOME}/.config/nushell/config.nu"
   )
@@ -313,24 +341,27 @@ cmd_status() {
   local shell_rc_files=(
     "${HOME}/.bashrc"
     "${HOME}/.bash_profile"
+    "${HOME}/.profile"
     "${HOME}/.zshrc"
+    "${HOME}/.zprofile"
     "${HOME}/.config/fish/config.fish"
   )
 
   local installed=0
-  local rc_file_found=""
+  local rc_files_found=()
 
   for rc_file in "${shell_rc_files[@]}"; do
     if [ -f "$rc_file" ] && grep -q "gh-hooks" "$rc_file" 2>/dev/null; then
       installed=1
-      rc_file_found="$rc_file"
-      break
+      rc_files_found+=("$rc_file")
     fi
   done
 
   if [ $installed -eq 1 ]; then
     echo "✓ Shell integration: INSTALLED"
-    echo "  Config file: $rc_file_found"
+    for found_file in "${rc_files_found[@]}"; do
+      echo "  Config file: $found_file"
+    done
     echo "  Note: Use 'gh_hooks_status' function in your shell for live status"
   else
     echo "✗ Shell integration: NOT INSTALLED"

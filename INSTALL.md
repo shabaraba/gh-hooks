@@ -78,8 +78,17 @@ This is the easiest way to install and manage gh-hooks.
 
    This will:
    - Auto-detect your shell (bash, zsh, fish, or nu)
-   - Add the necessary source line to your RC file
-   - Create config directory and file if they don't exist
+   - Add the necessary source line to your RC file and profile file
+   - For bash: installs to `.bashrc` and `.bash_profile` (macOS) or `.profile` (Linux)
+   - For zsh: installs to `.zshrc` and `.zprofile`
+   - For fish/nu: installs to config file only (no separate profile)
+   - Create config directories and files if they don't exist
+
+   **Why both RC and profile files?**
+   - RC files (`.zshrc`, `.bashrc`): loaded for interactive shells
+   - Profile files (`.zprofile`, `.bash_profile`): loaded for login shells
+   - Non-interactive tools (like Bash tool in editors) may only load profile files
+   - Installing to both ensures hooks work in all contexts
 
 3. **Reload your shell:**
    ```bash
@@ -155,7 +164,15 @@ For users who don't want to use GitHub CLI extensions:
 
 ### Zsh
 
-Add to `~/.zshrc`:
+The installer automatically adds to both files for comprehensive coverage:
+
+**`~/.zshrc`** (interactive shells):
+```bash
+# gh-hooks: GitHub CLI hooks
+source ~/.gh-hooks/gh-hooks.sh
+```
+
+**`~/.zprofile`** (login shells):
 ```bash
 # gh-hooks: GitHub CLI hooks
 source ~/.gh-hooks/gh-hooks.sh
@@ -163,7 +180,15 @@ source ~/.gh-hooks/gh-hooks.sh
 
 ### Bash
 
-Add to `~/.bashrc` (Linux) or `~/.bash_profile` (macOS):
+The installer automatically adds to both files:
+
+**`~/.bashrc`** (interactive shells):
+```bash
+# gh-hooks: GitHub CLI hooks
+source ~/.gh-hooks/gh-hooks.sh
+```
+
+**macOS - `~/.bash_profile`** or **Linux - `~/.profile`** (login shells):
 ```bash
 # gh-hooks: GitHub CLI hooks
 source ~/.gh-hooks/gh-hooks.sh
