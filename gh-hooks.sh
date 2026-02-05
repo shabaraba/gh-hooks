@@ -19,9 +19,20 @@ source "${_GH_HOOKS_DIR}/lib/core.sh"
 # shellcheck source=lib/hooks.sh
 source "${_GH_HOOKS_DIR}/lib/hooks.sh"
 
-_gh_hooks_core_init
-
 gh() {
+  # Lazy initialization: check requirements on first use
+  if [ -z "${_GH_HOOKS_INITIALIZED:-}" ]; then
+    if ! _gh_hooks_command_exists gh; then
+      _gh_hooks_error "GitHub CLI (gh) is not installed"
+      return 1
+    fi
+    if ! _gh_hooks_command_exists git; then
+      _gh_hooks_error "Git is not installed"
+      return 1
+    fi
+    export _GH_HOOKS_INITIALIZED=1
+  fi
+
   command gh "$@"
   local exit_code=$?
 
