@@ -24,6 +24,29 @@ exec $SHELL
 
 **Supported shells:** bash, zsh, fish, nushell (nu)
 
+### Installation Locations
+
+The installer adds hooks to **both RC and profile files** for comprehensive coverage:
+
+**For zsh:**
+- `~/.zshrc` - Loaded for interactive shells
+- `~/.zprofile` - Loaded for login shells and non-interactive contexts
+
+**For bash:**
+- `~/.bashrc` - Loaded for interactive shells
+- `~/.bash_profile` (macOS) or `~/.profile` (Linux) - Loaded for login shells
+
+**Why both files?**
+
+Non-interactive tools (like Claude Code's Bash tool, CI/CD scripts, or automated processes) typically only load profile files (`.zprofile`, `.bash_profile`), not RC files (`.zshrc`, `.bashrc`). Installing to both locations ensures gh-hooks works in all contexts:
+
+- ✅ Interactive terminal sessions (`.zshrc`, `.bashrc`)
+- ✅ Non-interactive shells (`.zprofile`, `.bash_profile`)
+- ✅ Editor integrated terminals (Claude Code, VSCode, etc.)
+- ✅ Automated scripts and CI/CD pipelines
+
+Without profile file installation, hooks would not work in non-interactive contexts, limiting automation capabilities.
+
 ## Overview
 
 `gh-hooks` adds powerful hook functionality to GitHub CLI (`gh` command), allowing you to automatically execute custom scripts after certain GitHub operations. This enables local CI/CD workflows without relying on GitHub Actions minutes.
