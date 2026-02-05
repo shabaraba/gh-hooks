@@ -3,6 +3,44 @@
 
 _GH_HOOKS_IN_EXECUTION=0
 
+_gh_hooks_call_with_fallback() {
+  local hook_name="$1"
+  shift
+
+  local async_hook_name="${hook_name}_async"
+  local has_async=0
+  local has_sync=0
+
+  # Check which hooks are defined
+  if type "$async_hook_name" >/dev/null 2>&1; then
+    has_async=1
+  fi
+  if type "$hook_name" >/dev/null 2>&1; then
+    has_sync=1
+  fi
+
+  # If neither exists, skip
+  if [ $has_async -eq 0 ] && [ $has_sync -eq 0 ]; then
+    _gh_hooks_debug "No hooks defined for '$hook_name'"
+    return 0
+  fi
+
+  # Execute async first (non-blocking), then sync (blocking)
+  local async_exit=0
+  local sync_exit=0
+
+  if [ $has_async -eq 1 ]; then
+    _gh_hooks_call "$async_hook_name" "$@" || async_exit=$?
+  fi
+
+  if [ $has_sync -eq 1 ]; then
+    _gh_hooks_call "$hook_name" "$@" || sync_exit=$?
+  fi
+
+  # Return non-zero if sync hook failed (async failures are logged but don't affect exit code)
+  return $sync_exit
+}
+
 _gh_hooks_call() {
   local hook_name="$1"
   shift
@@ -17,21 +55,51 @@ _gh_hooks_call() {
     return 0
   fi
 
-  _gh_hooks_debug "Calling hook: $hook_name $*"
+  # Check if this is an async hook (ends with _async)
+  local is_async=0
+  if [[ "$hook_name" =~ _async$ ]]; then
+    is_async=1
+  fi
 
-  _GH_HOOKS_IN_EXECUTION=1
-  trap '_GH_HOOKS_IN_EXECUTION=0' EXIT INT TERM
+  if [ $is_async -eq 1 ]; then
+    _gh_hooks_debug "Calling hook (async): $hook_name $*"
 
-  local exit_code=0
-  "$hook_name" "$@" || exit_code=$?
+    # Execute in background with proper cleanup
+    (
+      _GH_HOOKS_IN_EXECUTION=1
+      local exit_code=0
+      "$hook_name" "$@" 2>&1 || exit_code=$?
 
-  _GH_HOOKS_IN_EXECUTION=0
-  trap - EXIT INT TERM
+      if [ $exit_code -ne 0 ]; then
+        _gh_hooks_error "Async hook '$hook_name' failed with exit code $exit_code"
+      else
+        _gh_hooks_debug "Async hook '$hook_name' completed successfully"
+      fi
+      exit $exit_code
+    ) &
 
-  if [ $exit_code -ne 0 ]; then
-    _gh_hooks_error "Hook '$hook_name' failed with exit code $exit_code"
+    local pid=$!
+    _gh_hooks_debug "Hook started in background (PID: $pid)"
+    return 0
   else
-    _gh_hooks_debug "Hook '$hook_name' completed successfully"
+    _gh_hooks_debug "Calling hook (sync): $hook_name $*"
+
+    _GH_HOOKS_IN_EXECUTION=1
+    trap '_GH_HOOKS_IN_EXECUTION=0' EXIT INT TERM
+
+    local exit_code=0
+    "$hook_name" "$@" || exit_code=$?
+
+    _GH_HOOKS_IN_EXECUTION=0
+    trap - EXIT INT TERM
+
+    if [ $exit_code -ne 0 ]; then
+      _gh_hooks_error "Hook '$hook_name' failed with exit code $exit_code"
+    else
+      _gh_hooks_debug "Hook '$hook_name' completed successfully"
+    fi
+
+    return $exit_code
   fi
 }
 
@@ -113,13 +181,13 @@ _gh_hooks_handle_pr_merge() {
     version=$(_gh_hooks_extract_version)
 
     if [ -n "$version" ]; then
-      _gh_hooks_call gh_hook_release_pr_merged "$version"
+      _gh_hooks_call_with_fallback gh_hook_release_pr_merged "$version"
     else
       _gh_hooks_warn "Release PR detected but could not extract version"
-      _gh_hooks_call gh_hook_pr_merged "$pr_title" "$pr_number"
+      _gh_hooks_call_with_fallback gh_hook_pr_merged "$pr_title" "$pr_number"
     fi
   else
-    _gh_hooks_call gh_hook_pr_merged "$pr_title" "$pr_number"
+    _gh_hooks_call_with_fallback gh_hook_pr_merged "$pr_title" "$pr_number"
   fi
 }
 
@@ -136,7 +204,7 @@ _gh_hooks_handle_pr_create() {
   fi
 
   _gh_hooks_debug "Created PR #$pr_number: $pr_url"
-  _gh_hooks_call gh_hook_pr_created "$pr_number" "$pr_url"
+  _gh_hooks_call_with_fallback gh_hook_pr_created "$pr_number" "$pr_url"
 }
 
 _gh_hooks_handle_pr_close() {
@@ -151,7 +219,7 @@ _gh_hooks_handle_pr_close() {
   fi
 
   _gh_hooks_debug "Closed PR #$pr_number"
-  _gh_hooks_call gh_hook_pr_closed "$pr_number"
+  _gh_hooks_call_with_fallback gh_hook_pr_closed "$pr_number"
 }
 
 _gh_hooks_handle_release_create() {
@@ -167,5 +235,5 @@ _gh_hooks_handle_release_create() {
   fi
 
   _gh_hooks_debug "Created release: $tag_name"
-  _gh_hooks_call gh_hook_release_created "$tag_name" "$release_url"
+  _gh_hooks_call_with_fallback gh_hook_release_created "$tag_name" "$release_url"
 }
