@@ -1,8 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # gh-hooks.sh - GitHub CLI hooks system
 
 _GH_HOOKS_VERSION="0.1.0"
-_GH_HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Detect script directory (compatible with bash and zsh)
+if [ -n "${BASH_SOURCE[0]}" ]; then
+  _GH_HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+elif [ -n "${ZSH_VERSION}" ]; then
+  _GH_HOOKS_DIR="$(cd "$(dirname "${(%):-%x}")" && pwd)"
+else
+  _GH_HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
 
 # shellcheck source=lib/utils.sh
 source "${_GH_HOOKS_DIR}/lib/utils.sh"
@@ -128,10 +136,16 @@ DOCUMENTATION:
 EOF
 }
 
-export -f gh
-export -f gh_disable_hooks
-export -f gh_enable_hooks
-export -f gh_hooks_status
-export -f gh_hooks_help
+# Export functions for bash (zsh doesn't need this)
+if [ -n "$BASH_VERSION" ]; then
+  _gh_hooks_debug "Running in bash mode"
+  export -f gh
+  export -f gh_disable_hooks
+  export -f gh_enable_hooks
+  export -f gh_hooks_status
+  export -f gh_hooks_help
+elif [ -n "$ZSH_VERSION" ]; then
+  _gh_hooks_debug "Running in zsh mode"
+fi
 
 _gh_hooks_debug "gh-hooks loaded successfully"
