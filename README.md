@@ -24,7 +24,7 @@ exec $SHELL
 
 ## Overview
 
-`gh-hooks` adds hook functionality to GitHub CLI (`gh` command), allowing you to automatically execute custom scripts after certain GitHub operations. This enables local CI/CD workflows without relying on GitHub Actions minutes.
+`gh-hooks` adds powerful hook functionality to GitHub CLI (`gh` command), allowing you to automatically execute custom scripts after certain GitHub operations. This enables local CI/CD workflows without relying on GitHub Actions minutes.
 
 ### Key Features
 
