@@ -46,6 +46,15 @@ gh_hook_release_pr_merged() {
   local version="$1"
 
   echo "ok: Release PR merged for version ${version}"
+
+  # Pull latest changes to ensure package.json has the updated version
+  echo "-> Pulling latest changes..."
+  if git pull origin main; then
+    echo "ok: Successfully pulled latest changes"
+  else
+    echo "warning: Failed to pull latest changes"
+  fi
+
   echo "-> Publishing to npm..."
 
   if [ -z "$NPM_TOKEN" ]; then
