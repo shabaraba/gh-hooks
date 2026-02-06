@@ -45,6 +45,15 @@ gh_hook_release_pr_merged() {
   local version="$1"
 
   echo "ok: Release PR merged for version ${version}"
+
+  # Pull latest changes to ensure Cargo.toml has the updated version
+  echo "-> Pulling latest changes..."
+  if git pull origin main; then
+    echo "ok: Successfully pulled latest changes"
+  else
+    echo "warning: Failed to pull latest changes"
+  fi
+
   echo "-> Publishing to crates.io..."
 
   if cargo publish; then
